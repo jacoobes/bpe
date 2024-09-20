@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFile } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { frequencies } from './shared.js'
 import { fileURLToPath } from 'url'
 
 
@@ -7,14 +8,7 @@ function* pairwise(arr) {
        yield arr[i]+"%"+arr[i+1]
    }
 }
-function frequencies (iter) {
-    const map =new Map()
-    for (const s of iter) {
-        const frq = (map.get(s) ?? 0) + 1
-        map.set(s, frq)
-    }
-    return map
-}
+
 
 function merge(tokens, best) {
     const newtokens = []    
@@ -85,7 +79,7 @@ export class BPE {
         }
         this.model.set("<UNK>", this.model.size+1)
         if(save) {
-            writeFile(this.model_name, JSON.stringify(Object.fromEntries(this.model), null, 4))
+            writeFileSync(this.model_name, JSON.stringify(Object.fromEntries(this.model), null, 4))
         }  
         return this.model
     }
@@ -113,11 +107,11 @@ if (import.meta.url.startsWith('file:')) { // (A)
 
   const modulePath = fileURLToPath(import.meta.url);
   if (process.argv[1] === modulePath) { 
-        const bpe = new BPE("abc.json")
-        //console.time('bpe')
-        //bpe.train(fs.readFileSync("out.txt", { encoding: 'utf8' }), true)
-        //console.timeEnd('bpe')
-        console.log(bpe.tokenize("Moby Dick"))
+        const bpe = new BPE("wc.json")
+        console.time('bpe')
+        //bpe.train(readFileSync("moby.txt", { encoding: 'utf8' }), true, 5000)
+        bpe.train("How much wood could a woodchuck chuck?", true, 5000)
+        console.timeEnd('bpe')
   }
 }
 
