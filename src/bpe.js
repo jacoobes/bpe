@@ -1,4 +1,6 @@
-import fs from 'node:fs'
+import { existsSync, readFileSync, writeFile } from 'node:fs'
+import { fileURLToPath } from 'url'
+
 
 function* pairwise(arr) {
    for (let i = 0; i < arr.length-1; i++) {
@@ -35,7 +37,7 @@ function merge(tokens, best) {
     return newtokens
 }
 
-class BPE {
+export class BPE {
     constructor( model_name, verbose=false,) {
         this.model_name=model_name
         this.verbose = verbose
@@ -43,9 +45,9 @@ class BPE {
         this.model= this._load_vocabulary()
     }
     _load_vocabulary() {
-        if (fs.existsSync(this.weights_name)) {
+        if (existsSync(this.model_name)) {
             this.trained = true
-            return new Map(JSON.parse(fs.readFileSync(this.weights_name, { encoding: 'utf8' })).entries())
+            return new Map(Object.entries(JSON.parse(readFileSync(this.model_name, { encoding: 'utf8' }))))
         }else{
             this.trained = false 
             return new Map()
@@ -56,6 +58,11 @@ class BPE {
             throw Error("Cannot train nonstring")
         }
         let tokens = [..._corpus.replaceAll("%", "")]
+        tokens.forEach(tok => {
+            if(!this.model.has(tok)) {
+                this.model.set(tok, this.model.size+1)
+            }
+        })
         let i = 0 
 
         while(i < k) {
@@ -76,37 +83,41 @@ class BPE {
             this.model.set(decodedPair, this.model.size+1)
             i++
         }
+        this.model.set("<UNK>", this.model.size+1)
         if(save) {
-            fs.writeFileSync(this.model_name, JSON.stringify(Object.fromEntries(this.model)))
+            writeFile(this.model_name, JSON.stringify(Object.fromEntries(this.model), null, 4))
         }  
         return this.model
     }
     tokenize(_data){
         const tokens = [..._data.replaceAll("%", "")]
-        console.log(this.model)
         let i = 0
         while (i < tokens.length) {
             let longest_match = null 
             for (const [k, v] of this.model.entries()) {
-                console.log(k)
-              if (tokens.slice(0, k.length).join("") == k) {
-                 longest_match = k
-              }
+                if (tokens.slice(i, i+k.length).join("") == k) {
+                    longest_match = k
+                }
             }
             if (longest_match) {
                 tokens.splice(i, longest_match.length, longest_match)
             }
             i += 1
         }
-        return tokens
+        return[ tokens, tokens.map(t => this.model.get(t))]
     }
 }
 
 
-const bpe = new BPE("abc.json")
-//console.time('bpe')
-//bpe.train(fs.readFileSync("out.txt", { encoding: 'utf8' }), true)
-//console.timeEnd('bpe')
-console.log(bpe.tokenize("Moby Dick"))
+if (import.meta.url.startsWith('file:')) { // (A)
 
+  const modulePath = fileURLToPath(import.meta.url);
+  if (process.argv[1] === modulePath) { 
+        const bpe = new BPE("abc.json")
+        //console.time('bpe')
+        //bpe.train(fs.readFileSync("out.txt", { encoding: 'utf8' }), true)
+        //console.timeEnd('bpe')
+        console.log(bpe.tokenize("Moby Dick"))
+  }
+}
 
