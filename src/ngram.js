@@ -1,5 +1,4 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { BPE } from './bpe.js'
 import { frequencies } from './shared.js'
 
 
@@ -20,7 +19,7 @@ function make_ngrams (arr, n) {
 }
 
 
-class Ngram {
+export class Ngram {
     constructor(name, n, tokenizer) {
         this.n = n
         this.tokenizer = tokenizer
@@ -36,7 +35,7 @@ class Ngram {
             return {};
         }
     }
-    train(corpus) {
+    train(corpus, save=false) {
         const [tokens, tids] = this.tokenizer.tokenize(corpus)
         //console.log(tokens)
         const ngrams = make_ngrams(tokens, this.n+1)
@@ -53,15 +52,18 @@ class Ngram {
                 this.model[key].push(tokens.at(-1))
             }
         }
-        writeFileSync(this.model_name,
-            JSON.stringify(this.model), { 'encoding': 'utf8' }, 4)
+        if(save) {
+            writeFileSync(this.model_name,
+                JSON.stringify(this.model), { 'encoding': 'utf8' }, 4)
+        }
+        
     }
 
     predict(words) {
         const [tokens] = this.tokenizer.tokenize(words)
         let out = ""
         let next = tokens.slice(tokens.length-this.n).join("^")
-        out += tokens.slice(tokens.length-this.n).join(" ") + " "
+        out += tokens.slice(tokens.length-this.n).join("") 
         const keys = Array.from(Object.keys(this.model))
         for(let i = 0; i < 100; i++) {
             const choices = this.model[next]
@@ -69,30 +71,30 @@ class Ngram {
                 const ran = keys[Math.floor(Math.random() * keys.length)]
                 next = ran
                 // this is just for ws tokenizer, need
-                out += ran.split('^').join(' ') + " "
+                out += ran.split('^').join('')
             } else {
                 const choice = choices[Math.floor(Math.random() * choices.length)]
                 next = choice
-                out +=  choice + " "
+                out +=  choice 
             }
         }
         return out
     }
 }
 
-class WSTokenizer { 
-    tokenize(text) {
-        return [text.split(/\s+/), []]
-    }
-}
-
-const ngram = new Ngram('moby2.json', 2, new WSTokenizer())
-
-//ngram.train(readFileSync('moby.txt', { encoding: 'utf8' }))
-
+//class WSTokenizer { 
+//    tokenize(text) {
+//        return [text.split(/\s+/), []]
+//    }
+//}
+//
+//const ngram = new Ngram('moby2.json', 2, new WSTokenizer())
 
 //ngram.train(readFileSync('moby.txt', { encoding: 'utf8' }))
-console.log(ngram.predict("Moby Dick"))
+
+
+//ngram.train(readFileSync('moby.txt', { encoding: 'utf8' }))
+//console.log(ngram.predict("Moby Dick"))
 
 
 

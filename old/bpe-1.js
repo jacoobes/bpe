@@ -1,5 +1,4 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { fileURLToPath } from 'url'
 import { frequencies } from './shared.js'
 
 
@@ -8,7 +7,6 @@ function* pairwise(arr) {
        yield arr[i]+"%"+arr[i+1]
    }
 }
-
 
 function merge(tokens, best) {
     const newtokens = []    
@@ -47,36 +45,30 @@ export class BPE {
             return new Map()
         }
     }
-    train(_corpus, save = false, max_vocab = 500) {
+    train(_corpus, save = false, vocab_size = 500) {
         if(typeof(_corpus) != 'string') {
             throw Error("Cannot train nonstring")
         }
-        if(this.trained) {
-            console.warn("Already trained a model at "+this.model_name)
-        }
-        // frequency delimiter
-        let tokens = Array.from(_corpus.replace(/%/g, ''));
-
+        let tokens = [..._corpus.replaceAll("%", "")]
         tokens.forEach(tok => {
             if(!this.model.has(tok)) {
                 this.model.set(tok, this.model.size+1)
             }
         })
-        
-        while(this.model.size < max_vocab) {
+
+        while(this.model.size < vocab_size) {
             const pairedtokens = pairwise(tokens)
-            const pairFreqs = frequencies(pairedtokens).entries()
-            let maxpair, maxv = 0;
-            for (const [pair, freq ]of pairFreqs) {
-                if (freq > maxv) {
-                    maxv = freq;
-                    maxpair = pair;
-                }
+            const pairFreqs = Array.from(frequencies(pairedtokens).entries())
+
+            pairFreqs.sort(([, v0], [, v1]) => v1 - v0)
+            if(!pairFreqs.length) {
+                break
             }
-            if (maxv == 1) {
-                break;
+            const [best, freq] = pairFreqs[0]
+            if (freq == 1) {
+                break
             }
-            const [lhs, rhs] = maxpair.split("%")
+            const [lhs, rhs] = best.split("%")
             const decodedPair = lhs+rhs
             tokens = merge(tokens, decodedPair)
             this.model.set(decodedPair, this.model.size+1)
@@ -84,13 +76,10 @@ export class BPE {
         this.model.set("<UNK>", this.model.size+1)
         if(save) {
             writeFileSync(this.model_name, JSON.stringify(Object.fromEntries(this.model), null, 4))
-        }
+        }  
         return this.model
     }
     tokenize(_data){
-        if(typeof(_data) != 'string') {
-            throw Error("Cannot train nonstring")
-        }
         const tokens = [..._data.replaceAll("%", "")]
         let i = 0
         while (i < tokens.length) {
@@ -108,6 +97,4 @@ export class BPE {
         return[ tokens, tokens.map(t => this.model.get(t))]
     }
 }
-
-
 
