@@ -61,24 +61,16 @@ export class Ngram {
 
     predict(words) {
         const [tokens] = this.tokenizer.tokenize(words)
-        let out = ""
         let next = tokens.slice(tokens.length-this.n).join("^")
-        out += tokens.slice(tokens.length-this.n).join("") 
         const keys = Array.from(Object.keys(this.model))
-        for(let i = 0; i < 100; i++) {
-            const choices = this.model[next]
-            if(!choices) {
-                const ran = keys[Math.floor(Math.random() * keys.length)]
-                next = ran
-                // this is just for ws tokenizer, need
-                out += ran.split('^').join('')
-            } else {
-                const choice = choices[Math.floor(Math.random() * choices.length)]
-                next = choice
-                out +=  choice 
-            }
+        const choices = this.model[next]
+        if(!choices) {
+            const ran = keys[Math.floor(Math.random() * keys.length)]
+            return ran;
+        } else {
+            const choice = choices[Math.floor(Math.random() * choices.length)]
+            return choice
         }
-        return out
     }
 }
 
